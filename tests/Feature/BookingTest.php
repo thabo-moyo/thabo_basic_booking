@@ -117,4 +117,52 @@ class BookingTest extends TestCase
         $this->assertEquals('2025-08-05 11:00:00', $booking->end_time->format('Y-m-d H:i:s'));
     }
 
+    public function test_overlapping_booking_is_rejected(): void
+    {
+        Booking::create([
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'title'      => 'Existing Meeting',
+            'start_time' => '2025-08-05 10:00:00',
+            'end_time'   => '2025-08-05 11:00:00',
+        ]);
+
+        $request = $this->createRequest('POST', '/bookings', [
+            'title'      => 'Overlapping Meeting',
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'start_time' => '2025-08-05T10:30',
+            'end_time'   => '2025-08-05T11:30',
+        ]);
+
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(422, $response->getStatusCode());
+        $this->assertEquals(1, Booking::count());
+    }
+
+    public function test_adjacent_bookings_are_allowed(): void
+    {
+        Booking::create([
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'title'      => 'First Meeting',
+            'start_time' => '2025-08-05 10:00:00',
+            'end_time'   => '2025-08-05 11:00:00',
+        ]);
+
+        $request = $this->createRequest('POST', '/bookings', [
+            'title'      => 'Back-to-back Meeting',
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'start_time' => '2025-08-05T11:00',
+            'end_time'   => '2025-08-05T12:00',
+        ]);
+
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(302, $response->getStatusCode());
+        $this->assertEquals(2, Booking::count());
+    }
+
 }
