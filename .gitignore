@@ -1,0 +1,6 @@
+/vendor/
+/database/booking.db
+.phpunit.result.cache
+.idea/
+.vscode/
+.DS_Store
