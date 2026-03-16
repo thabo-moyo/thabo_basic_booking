@@ -15,6 +15,12 @@ class BookingController
         $params = $request->getQueryParams();
         $weekParam = $params['week'] ?? null;
 
+        if (!$weekParam || !$this->isValidDate($weekParam)) {
+            return $this->json($response, [
+                'error' => 'A valid "week" query parameter is required (format: YYYY-MM-DD).',
+            ], 400);
+        }
+
         $date = new \DateTimeImmutable($weekParam);
         $dayOfWeek = (int) $date->format('N');
         $monday = $date->modify('-' . ($dayOfWeek - 1) . ' days')->setTime(0, 0, 0);
@@ -56,6 +62,11 @@ class BookingController
         ]);
     }
 
+    private function isValidDate(string $date): bool
+    {
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $date);
+        return $dt !== false && $dt->format('Y-m-d') === $date;
+    }
 
     private function json(Response $response, array $data, int $status = 200): Response
     {
