@@ -165,4 +165,83 @@ class BookingTest extends TestCase
         $this->assertEquals(2, Booking::count());
     }
 
+    public function test_different_users_can_have_overlapping_bookings(): void
+    {
+        Booking::create([
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'title'      => 'Alice Meeting',
+            'start_time' => '2025-08-05 10:00:00',
+            'end_time'   => '2025-08-05 11:00:00',
+        ]);
+
+        $request = $this->createRequest('POST', '/bookings', [
+            'title'      => 'Bob Meeting',
+            'user_id'    => 2,
+            'client_id'  => 1,
+            'start_time' => '2025-08-05T10:00',
+            'end_time'   => '2025-08-05T11:00',
+        ]);
+
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(302, $response->getStatusCode());
+        $this->assertEquals(2, Booking::count());
+    }
+
+    public function test_weekly_api_returns_bookings_for_correct_week(): void
+    {
+        Booking::create([
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'title'      => 'Week 1 Booking',
+            'start_time' => '2025-08-05 09:00:00',
+            'end_time'   => '2025-08-05 10:00:00',
+        ]);
+
+        Booking::create([
+            'user_id'    => 1,
+            'client_id'  => 1,
+            'title'      => 'Week 2 Booking',
+            'start_time' => '2025-08-12 09:00:00',
+            'end_time'   => '2025-08-12 10:00:00',
+        ]);
+
+        $request = $this->createRequest('GET', '/api/bookings', [], ['week' => '2025-08-05']);
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('application/json', $response->getHeaderLine('Content-Type'));
+
+        $json = json_decode((string) $response->getBody(), true);
+
+        $this->assertCount(1, $json['data']);
+        $this->assertEquals('Week 1 Booking', $json['data'][0]['title']);
+        $this->assertEquals('2025-08-04', $json['meta']['week_start']);
+        $this->assertEquals('2025-08-10', $json['meta']['week_end']);
+        $this->assertEquals(1, $json['meta']['total']);
+    }
+
+    public function test_weekly_api_requires_valid_week_parameter(): void
+    {
+        $request = $this->createRequest('GET', '/api/bookings');
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(400, $response->getStatusCode());
+
+        $json = json_decode((string) $response->getBody(), true);
+        $this->assertArrayHasKey('error', $json);
+    }
+
+    public function test_weekly_api_returns_empty_for_week_with_no_bookings(): void
+    {
+        $request = $this->createRequest('GET', '/api/bookings', [], ['week' => '2025-01-06']);
+        $response = $this->app->handle($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+
+        $json = json_decode((string) $response->getBody(), true);
+        $this->assertCount(0, $json['data']);
+        $this->assertEquals(0, $json['meta']['total']);
+    }
 }
