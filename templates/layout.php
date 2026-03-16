@@ -35,6 +35,10 @@
     </style>
 </head>
 <body>
+    <nav>
+        <a href="/">Bookings</a>
+        <a href="/bookings/create">New Booking</a>
+    </nav>
     <?= $content ?>
     <script src="/js/app.js"></script>
 </body>
